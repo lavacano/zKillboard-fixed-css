@@ -1,3 +1,6 @@
+## zLogiboard
+zLogiboard is logistics statistics based on zKillboard; info on that below:
+
 ## zKillboard
 zKillboard is a killboard created for EVE-Online, for use on zkillboard.com, but can also be used for single entities.
 
