@@ -103,11 +103,11 @@ while ($hour == date('H')) {
 
     $rtq = new RedisTimeQueue("zkb:characterID", 86400);
     addInfo('', 0, false);
-    addInfo('Total Characters', $rtq->size(), false);
+    addInfo("Characters", $rtq->size(), false);
     $rtq = new RedisTimeQueue("zkb:corporationID", 86400);
-    addInfo('Total Corporations', $rtq->size(), false);
+    addInfo("Corporations", $rtq->size(), false);
     $rtq = new RedisTimeQueue("zkb:allianceID", 86400);
-    addInfo('Total Alliances', $rtq->size(), false);
+    addInfo("Alliances", $rtq->size(), false);
 
     addInfo('', 0, false);
     $sponsored = Mdb::group("sponsored", [], ['entryTime' => ['$gte' => $mdb->now(86400 * -7)]], [], 'isk', ['iskSum' => -1]);

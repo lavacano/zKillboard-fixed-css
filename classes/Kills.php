@@ -29,13 +29,15 @@ class Kills
     {
         global $mdb, $redis;
 
+        if ($kills == null) return [];
+
         $details = [];
         foreach ($kills as $kill) {
-            $killID = (int) $kill['killID'];
-            $killHashKey = "killDetail:$killID";
+            $killID = (isset($kill['killID']) ? (int) $kill['killID'] : (int) $kill);
+            $killHashKey = "killmail_cache:$killID";
 
             $killmail = null;
-            $raw = $redis->get("killmail_cache:$killID");
+            $raw = $redis->get($killHashKey);
             if ($raw != null) $killmail = unserialize($raw);
 
             if ($killmail == null) {
@@ -52,7 +54,7 @@ class Kills
                 $killmail['finalBlow']['killID'] = $killID;
                 unset($killmail['_id']);
 
-                $redis->setex("killmail_cache:$killID", 900, serialize($killmail));
+                $redis->setex($killHashKey, 300 + rand(0, 300), serialize($killmail));
             }
             $details[$killID] = $killmail;
         }

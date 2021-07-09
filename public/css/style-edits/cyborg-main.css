@@ -1,8 +1,9 @@
 @media (min-width: 768px) {
 	body {
 		background-color: #060606;
-		background-image: url("/img/bg_cyborg_blueish.jpg");
-		background-image: url("/img/secretcyno.jpg");
+		background-image: url("/img/wallpapers/into_the_abyss.jpg");
+		/*background-image: url("/img/bg_cyborg_blueish.jpg");*/
+		/*background-image: url("/img/secretcyno.jpg");*/
 		-webkit-background-size: cover;
 		-moz-background-size: cover;
 		-o-background-size: cover;
@@ -11,11 +12,9 @@
 	}
 }
 
-.nobackground {
-	background: #060606;
-	background-color: rgba(6,6,6,0.95);
-	box-shadow: 0 0 5px 5px rgba(6,6,6,0.95);
-	opacity: 0.99;
+.nobackground, .navbar {
+       background: #000;
+       box-shadow: 0 0 5px 5px rgba(6,6,6,0.95);
 }
 
 .table tbody tr.error td

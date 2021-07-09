@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% set pageTitle = 'Advanced Search!' %}
+{% block title %}{% include 'components/title.html' %}{% endblock %}
+
+{% block content %}
+<h3>Advanced Search (sort of beta)</h3>
+<hr/>
+<div class="row">
+    <div class="col-md-10">
+        <div class="form-group">
+            <input id='asearch-autocomplete' class="asearch-autocomplete form-control" type="Search" placeholder="Search" aria-label="Search" />
+        </div>
+    </div>
+    <div class="col-md-2">
+        <a href='/asearch/' class='btn btn-default'>Reset</a>
+        <input type='submit' value='Save' disabled class='btn'>
+    </div>
+</div>
+<hr/>
+<div class='row centered'>
+    <div class='col-md-6'>
+        <label>Location</label>
+        <div id="location">All systems</div>
+    </div>
+    <div class='col-md-6'>
+        <label>Timespan</label>
+        <center><div id="timeframe" class='input-group' ><input id='dtstart' type='search' style='width: 10em;' class='form-control form-line' placeholder='2007-12-05 00:00'><input id='dtend' type='search' style='width: 10em;' class='form-control form-line' placeholder='Now'></div></center>
+    </div>
+</div>
+<hr/>
+<div class='row centered'>
+    {% for group in labels %}
+        <div class='btn-group'>
+            {% for label in group %}
+                <button class='filter-btn btn btn-default btn-sm'>{{ label }}</button>
+            {% endfor %}
+        </div>
+    {% endfor %}
+</div>
+<hr/>
+<div class='row centered' style='min-height: 100px;'>
+    <div class="col-md-4">
+        <label>Attackers</label>
+        <div id="attackers"></div>
+    </div>
+    <div class='col-md-4'>
+        <label>Either</label>
+        <div id='neutrals'></div>
+    </div>
+    <div id='victim' class="col-md-4">
+        <label>Victim</label>
+        <div id="victims"></div>
+    </div>
+</div>
+<div class="row">
+    <div id='page' class='col-md-10'>
+        <div zkill-var='sort' zkill-key='sortBy' class='btn-group'><button class='radio-btn btn btn-primary'>Date</button><button class='radio-btn btn btn-default'>ISK</button><button class='radio-btn btn btn-default'>Involved</button></div>
+        <div zkill-var='sort' zkill-key='sortDir' class='btn-group'><button class='radio-btn btn btn-primary'>Desc</button><button class='radio-btn btn btn-default'>Asc</button></div>
+        <div zkill-var='page' class='btn-group pull-right'>
+            <button id='page1' class='radio-btn btn btn-primary'>1</button>
+            <button class='radio-btn btn btn-default'>2</button>
+            <button class='radio-btn btn btn-default'>3</button>
+            <button class='radio-btn btn btn-default'>4</button>
+            <button class='radio-btn btn btn-default'>5</button>
+            <button class='radio-btn btn btn-default'>6</button>
+            <button class='radio-btn btn btn-default'>7</button>
+            <button class='radio-btn btn btn-default'>8</button>
+            <button class='radio-btn btn btn-default'>9</button>
+            <button class='radio-btn btn btn-default'>10</button>
+        </div>
+        <div class="clearfix"></div><br/>
+<div id="killmails-result" style='min-height: 500px;'>
+<table class="table table-condensed table-striped table-hover" style="margin-bottom: 0px;" id="killlist">
+  <thead>
+    <tr>
+      <th>Time</th>
+      <th class="hidden-xs" style="width: 50px; text-align: center;">Ship</th>
+      <th class="hidden-xs" style="width:115px;">Place</th>
+      <th class="hidden-xs" style="width: 64px;">&nbsp;</th>
+      <th class="hidden-xs">Victim</th>
+      <th class="hidden-xs" style="width: 64px;">&nbsp;</th>
+      <th class="hidden-xs">Final Blow</th>
+    </tr>
+  </thead>
+  <tbody id="killmails-list">
+  </tbody>
+</table>
+</div>
+    </div>
+    <div class='col-md-2'>
+        <div zkill-var='group-agg-type' class='btn-group btn-group-vertical' style='width: 100%'>
+            <div class='radio-btn btn btn-default btn-primary'>All Involved</div>
+            <div class='radio-btn btn btn-default'>Victims Only</div>
+            <div class='radio-btn btn btn-default'>Attackers Only</div>
+        </div>
+        <div><h4 id='result-groups-count'></h4></div>
+        <div id='result-groups-character'></div>
+        <div id='result-groups-corporation'></div>
+        <div id='result-groups-alliance'></div>
+        <div id='result-groups-faction'></div>
+        <div id='result-groups-shipType'></div>
+        <div id='result-groups-group'></div>
+        <div id='result-groups-location'></div>
+        <div id='result-groups-solarSystem'></div>
+        <div id='result-groups-constellation'></div>
+        <div id='result-groups-region'></div>
+    </div>
+</div>
+<hr/>
+
+{% endblock %}
+
+{% block script %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-datetimepicker/2.5.20/jquery.datetimepicker.full.min.js" integrity="sha512-AIOTidJAcHBH2G/oZv9viEGXRqDNmfdPVPYOYKGy3fti0xIplnlgMHUGfuNRzC6FkzIo0iIxgFnr9RikFxK+sw==" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-datetimepicker/2.5.20/jquery.datetimepicker.css" integrity="sha512-bYPO5jmStZ9WI2602V2zaivdAnbAhtfzmxnEGh9RwtlI00I9s8ulGe4oBa5XxiC6tCITJH/QG70jswBhbLkxPw==" crossorigin="anonymous" />
+<link rel="stylesheet" href="/css/asearch.css">
+<script type="text/javascript" src="/js/asearch.js?202102011541"></script>
+{% endblock %}

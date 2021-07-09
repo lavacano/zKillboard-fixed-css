@@ -298,3 +298,98 @@ td.centered {
     margin: auto;
   }
 }
+
+.pointer {
+    cursor: pointer;
+}
+
+#nojsfulloverlay {
+  color: black;
+  background: white;
+  width:      100%;
+  height:     100%; 
+  z-index:    10;
+  top:        0; 
+  left:       0; 
+  position:   fixed; 
+  text-align: center;
+  padding-top: 1em;
+}
+
+.adrow {
+    height: 101px;
+}
+
+.bottom-interstitial {
+    display: none !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    -webkit-overflow-scrolling: touch;
+    z-index: 1000;
+    background: black;
+    padding-top: 5px;
+}
+.bottom-padding {
+    display: none !important;
+    height: 125px;
+}
+
+@media only screen and (max-width: 767px) {
+.ad-sm-block {
+    display: block !important;
+}
+html,body {
+    height: 100%;
+    margin-bottom: 125px !important;
+}
+}
+@media only screen and (max-width: 1579px) {
+.ad-xl-block {
+    display: none !important;
+}
+}
+
+@media only screen and (min-width: 1580px) {
+.left-sticky-ad {
+    position: fixed;
+    top: 50px;
+    left: calc(50% - 785px);
+    width: 180px;
+    max-width: 180px;
+    height: 600px;
+    max-height: 600px;
+    background-color: transparent;
+}
+
+.right-sticky-ad {
+    position: fixed;
+    top: 50px;
+    left: calc(50% + 615px);
+    width: 180px;
+    max-width: 180px;
+    height: 600px;
+    max-height: 600px;
+    background-color: transparent;
+}
+
+.ad-xl-block {
+    display: block;
+}
+.ad-xl-none {
+    display: none !important;
+}
+}
+
+
+.nowrap-parent {
+    width: 250px;
+}
+
+.nowrap {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis; // This is where the magic happens    
+}

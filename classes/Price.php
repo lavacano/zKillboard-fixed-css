@@ -16,11 +16,6 @@ class Price
             $kmDate = date('Y-m-d H:i');
         }
 
-        if ($categoryID == 66) { // "Build" all rigs
-            $price = Build::getItemPrice($typeID, $kmDate, true, true);
-            if ($price > 0.01) return $price;
-        }
-
         $price = static::getFixedPrice($typeID, $kmDate);
         if ($price !== null) {
             return $price;
@@ -28,6 +23,11 @@ class Price
         $price = static::getCalculatedPrice($typeID, $kmDate);
         if ($price !== null) {
             return $price;
+        }
+
+        if ($categoryID == 66) { // "Build" all rigs
+            $price = Build::getItemPrice($typeID, $kmDate, true, true);
+            if ($price > 0.01) return $price;
         }
 
         // Have we fetched prices for this typeID today?
@@ -151,6 +151,8 @@ class Price
                 return 230000000000;
             case 48635: // Tiamat
                 return 230000000000;
+            case 47512: // 'Moreau' Fortizar
+                return 60000000000; // 60b 
             case 9860: // Polaris
             case 11019: // Cockroach
                 return 1000000000000; // 1 trillion, rare dev ships
@@ -168,11 +170,14 @@ class Price
                 return 500000000000; // 500b
                 // Rare battleships
             case 13202: // Megathron Federate Issue
-            case 26840: // Raven State Issue
             case 11936: // Apocalypse Imperial Issue
             case 11938: // Armageddon Imperial Issue
             case 26842: // Tempest Tribal Issue
                 return 750000000000; // 750b
+            case 26840: // Raven State Issue
+                return 2500000000000;
+            case 47514: // 'Horizon' Fortizar
+                return 60000000000; // Too much market bugginess, hardcoding price
         }
 
         // Some groupIDs have hardcoded prices

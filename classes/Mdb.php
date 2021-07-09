@@ -170,7 +170,12 @@ class Mdb
         $serialized = "Mdb::find|$collection|".serialize($query).'|'.serialize($sort)."|$limit|".serialize($includes);
         $cacheKey = $serialized;
         if ($cacheTime > 0) {
+            try {
             $cached = RedisCache::get($cacheKey);
+            } catch (Exception $ex) {
+                $cached = null;
+                RedisCache::delete($cacheKey);
+            }
             if ($cached != null) {
                 return $cached;
             }
@@ -195,7 +200,7 @@ class Mdb
         }
 
         if ($cacheTime > 0 && sizeof($result) > 0) {
-            RedisCache::set($cacheKey, $result, $cacheTime);
+            //RedisCache::set($cacheKey, $result, $cacheTime);
         }
 
         return $result;

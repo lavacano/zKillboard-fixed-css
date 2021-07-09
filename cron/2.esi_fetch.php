@@ -5,7 +5,10 @@ use cvweiss\redistools\RedisTtlCounter;
 
 require_once "../init.php";
 
-$guzzler = new Guzzler(20);
+if ($redis->get("zkb:reinforced") == true) exit();
+if ($redis->get("zkb:noapi") == "true") exit();
+
+$guzzler = new Guzzler(1);
 $esimails = $mdb->getCollection("esimails");
 
 $mdb->set("crestmails", ['processed' => 'fetching'], ['processed' => false], true);
@@ -19,7 +22,7 @@ while ($minute == date("Hi")) {
         $hash = $row['hash'];
 
         $raw = Kills::getEsiKill($killID);
-        if ($raw != null) {
+        if (false && $raw != null) {
             $mdb->set("crestmails", $row, ['processed' => 'fetched']);
             $redis->zadd("tobeparsed", $killID, $killID);
             continue;
@@ -28,10 +31,10 @@ while ($minute == date("Hi")) {
         $mdb->set("crestmails", $row, ['processed' => 'fetching']);
         $guzzler->call("$esiServer/v1/killmails/$killID/$hash/", "success", "fail", ['row' => $row, 'mdb' => $mdb, 'redis' => $redis, 'killID' => $killID, 'esimails' => $esimails]);
         $count++;
+        $guzzler->finish();
     }
     if (sizeof($rows) == 0) {
-        $guzzler->tick();
-        sleep(1);
+        $guzzler->sleep(1);
     }
 }
 $guzzler->finish();
@@ -44,8 +47,11 @@ function fail($guzzler, $params, $ex) {
     switch ($code) {
         case 400:
         case 404:
-        case 422:
             $mdb->set("crestmails", $row, ['processed' => 'failed', 'code' => $code]);
+            break;
+        case 422:
+            //$mdb->set("crestmails", $row, ['processed' => 'failed', 'code' => $code]);
+            $mdb->remove("crestmails", $row);
             break;
         case 0:
         case 420:
@@ -62,10 +68,14 @@ function fail($guzzler, $params, $ex) {
 function success(&$guzzler, &$params, &$content) {
     global $redis;
 
-    if ($content == "") return;
-
     $mdb = $params['mdb'];
     $row = $params['row'];
+
+    if ($content == "") {
+        $mdb->set("crestmails", $row, ['processed' => 'empty']);
+        return;
+    }
+
 
     $esimails = $params['esimails'];
     $doc = json_decode($content, true);

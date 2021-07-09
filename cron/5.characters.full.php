@@ -6,6 +6,7 @@ require_once "../init.php";
 
 if ($redis->get("zkb:reinforced") == true) exit();
 if ($redis->get("zkb:420prone") == "true") exit();
+if ($redis->get("zkb:noapi") == "true") exit();
 if ($redis->get("zkb:universeLoaded") != "true") exit("Universe not yet loaded...\n");
 
 $guzzler = new Guzzler();
@@ -75,7 +76,7 @@ function success($guzzler, $params, $content)
         $newKills += addMail($killID, $hash);
     }
 
-    if (sizeof($kills)) {
+    if (sizeof($kills) >= 1000) {
         $params['newKills'] = $newKills;
         $params['max_kill_id'] = $minKillID;
         $params['maxKillID'] = $maxKillID;
@@ -120,8 +121,9 @@ function addMail($killID, $hash)
 function fail($guzzer, $params, $ex) 
 {
     global $mdb;
+    $row = $params['row'];
 
-    $mdb->removeField("scopes", $params['row'], "iterated");
+    $mdb->set("scopes", $row, ['iterated' => true]);
 }
 
 function accessTokenFail(&$guzzler, &$params, $ex)

@@ -5,6 +5,7 @@ use cvweiss\redistools\RedisTimeQueue;
 require_once "../init.php";
 
 if ($redis->get("zkb:reinforced") == true) exit();
+if ($redis->get("zkb:noapi") == "true") exit();
 
 $esi = new RedisTimeQueue('tqApiESI', 3600);
 $esiCorp = new RedisTimeQueue('tqCorpApiESI', 3600);
@@ -22,7 +23,6 @@ $guzzler = new Guzzler($esiCharKillmails, 5);
 $bumped = [];
 $minute = date('Hi');
 while ($minute == date('Hi')) {
-    //if ($esiCorp->pending() > 100) sleep(2);
     $charID = $esi->next(false);
     if ($charID > 0) {
         $row = $mdb->findDoc("scopes", ['characterID' => (int) $charID, 'scope' => "esi-killmails.read_killmails.v1"], ['lastFetch' => 1]);
@@ -40,8 +40,12 @@ while ($minute == date('Hi')) {
                 }
                 continue;
             }
+
+            $hasRecent = $mdb->exists("ninetyDays", ['involved.characterID' => $charID]);
+            if (!$hasRecent && @$row['lastFetch']->sec != 0 && (($charID % 24) != date('H'))) continue;
+
             // Give corporation checks priority
-            if ($esiCorp->pending() > $ssoThrottle) usleep(ceil(1000000 / max(1, $ssoThrottle)));
+            if ($esiCorp->pending() > $ssoThrottle) $guzzler->sleep(0, ceil(1000000 / max(1, $ssoThrottle)));
 
             $params = ['row' => $row, 'esi' => $esi];
             $refreshToken = $row['refreshToken'];
@@ -56,8 +60,7 @@ while ($minute == date('Hi')) {
             $esi->remove($charID);
         }
     } else {
-        $guzzler->tick();
-        sleep(1);
+        $guzzler->sleep(1);
     }
 }
 $guzzler->finish();
@@ -123,7 +126,7 @@ function success($guzzler, $params, $content)
             return;
         }
         // Otherwise check them roughly once a day
-        $esi->setTime($charID, time() + (rand(18, 23) * 3600));
+        $esi->setTime($charID, time() + (rand(24, 30) * 3600));
     }
     // Check recently active characters every 5 minutes
     if ($redis->get("recentKillmailActivity:$charID") == "true") {
@@ -196,7 +199,7 @@ function accessTokenFail(&$guzzler, &$params, $ex)
     $code = $ex->getCode();
 
     $json = json_decode($params['content'], true);
-    if (@$json['error'] == 'invalid_grant' || @$json['error'] == 'invalid_token') {
+    if (@$json['error'] == 'invalid_grant' || @$json['error'] == 'invalid_token' || $code == 403) {
         Util::out("Removing invalid refresh token for $charID");
         $mdb->remove("scopes", ['characterID' => (int) $charID]);
         $esi->remove($charID);

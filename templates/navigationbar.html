@@ -5,7 +5,7 @@
 		</div>
 	</div>
 {% endif %}
-<div class="navbar navbar-default">
+<div class="navbar navbar-default" style="margin-bottom: 0px;">
 	<div class="container">
 		<div class="navbar-header">
 			<button type="button" class="navbar-toggle openMenu" data-toggle="collapse" data-target=".navbar-main">
@@ -35,49 +35,25 @@
 						<li><a href="/kills/w-space/">W-Space</a></li>
 						<li class="divider"></li>
 						<li><a href="/kills/5b/">+5b</a></li>
-						<li><a href="/kills/10b">+10b</a></li>
+						<li><a href="/kills/10b/">+10b</a></li>
 						<li class="divider"></li>
 						<li><a href="/kills/capitals/">Capitals</a></li>
 						<li><a href="/kills/freighters/">Freighters</a></li>
 						<li><a href="/kills/rorquals/">Rorquals</a></li>
 						<li><a href="/kills/supers/">Supers</a></li>
+						<li class="divider"></li>
+						<li><a href="/ranks/recent/killers/">Top 10 Recent</a></li>
+						<li><a href="/ranks/alltime/killers/">Top 10 Alltime</a></li>
 					</ul>
 				</li>
 				<li class="dropdown hidden-xs hidden-sm" id="tracker-menu">
 					<a href="#" class="dropdown-toggle" data-toggle="dropdown">Tracker <b class="caret"></b></a>
 					<ul class="dropdown-menu" id='tracker-dropdown'>
-						{% if sessionusername %}
-						{% if tracker_character %}
-						<li class="dropdown-header">Characters</li>
-						{% for data in tracker_character %}
-						<li><a href="/character/{{ data.id }}/">{{ data.name }}</a></li>
-						{% endfor %}
-						{% endif %}
-						{% if tracker_corporation %}
-						<li class="dropdown-header">Corporations</li>
-						{% for data in tracker_corporation %}
-						<li><a href="/corporation/{{ data.id }}/">{{ data.name }}</a></li>
-						{% endfor %}
-						{% endif %}
-						{% if tracker_alliance %}
-						<li class="dropdown-header">Alliances</li>
-						{% for data in tracker_alliance %}
-						<li><a href="/alliance/{{ data.id }}/">{{ data.name }}</a></li>
-						{% endfor %}
-						{% endif %}
-						{% if tracker_faction %}
-						<li class="dropdown-header">Factions</li>
-						{% for data in tracker_faction %}
-						<li><a href="/faction/{{ data.id }}/">{{ data.name }}</a></li>
-						{% endfor %}
-						{% endif %}
-						{% else %}
 						<li>Please log in first.</li>
-						{% endif %}
 					</ul>
 				</li>
 				<li class="hidden-xs hidden-sm"><a href="/post/">Post</a></li>
-				<li class="hidden-xs hidden-sm"><a href="/map/">Map</a></li>
+				<li class="hidden-xs hidden-sm"><a href="https://tmikoss.github.io/zkb-map/" target="_new">Map</a></li>
 				<li class="hidden-xs hidden-sm"><a href="/information/payments/"><img src='/img/golden-wreck.png'></a></li>
                                 <li class="hidden-xs hidden-sm"><a href="/account/favorites/"><span id='favorite' style='width: 1em; cursor: pointer;'><b id='fav-star' class="glyphicon glyphicon-star" style='color: #FDBC2C'></b></span></a></li>
 				{% if statslink %}
@@ -88,30 +64,22 @@
 				<li class="hidden-xs hidden-sm"><a href="/top/lasthour/all/" rel="tooltip" title="Kills added this hour" id="lasthour">&nbsp;</a></li>
 				<li class="hidden-xs hidden-sm"><a href="#" rel="tooltip" title="Tranquility Status" onClick="return false;"><span id="tqStatus">&nbsp;</span></a></li>
 				<li class="hidden-xs hidden-sm hidden-md"><a href="/ztop/" rel="tooltip" title="Eve Time"><div id="my_clock"></div></a></li>
-				<li class="dropdown">
-					<form name="search" id="search" class="navbar-form navbar-right" action="/search/" method="post">
-						<div class="form-group">
-							<input type="text" class="form-control" placeholder="Search" autocomplete="off" id="searchbox" name="searchbox" tabindex="1" style='width: 200px;'>
-						</div>
-					</form>
-				</li>
-				<li class="dropdown visible-lg hidden-xs hidden-sm">
-					<a href="#" class="dropdown-toggle" data-toggle="dropdown"><strong>?</strong> <b class="caret"></b></a>
-					<ul class="dropdown-menu">
-						<li class="dropdown-header">Information</li>
-                                                <li><a href='/ztop/'>zTop - live stats</a></li>
-						<li><a href="/information/about/">About</a></li>
-						<li><a href="https://github.com/zKillboard/zKillboard/wiki" target="_blank">API</a></li>
-						<li><a href="/information/faq/">FAQ</a></li>
-						<li><a href="/information/legal/">Legal</a></li>
-						<li><a href="/information/payments/">Payments</a></li>
-					</ul>
-				</li>
+                <li>
+                    <form name="search" id="search" class="navbar-form navbar-right">
+                        <div class="form-group">
+                        <div class='input-group' style='width: 100px;'>
+                            <div class="input-group-addon" style='cursor: pointer;' onclick='window.location = "/asearch/"' rel='tooltip' data-original-title='Advanced Search'><a href='/asearch/'' title='Advanced Search'><span class="glyphicon glyphicon-search" style='color: white;'></span></a></div>
+                            <input type="text" class="form-control" placeholder="← advanced search" autocomplete="off" id="searchbox" name="searchbox" tabindex="1" style='width: 200px;'>
+                        </div>
+                        </div>
+                    </form>
+                </li>
 				<li id='usermenu' class="dropdown">
 					<a href="#" class="dropdown-toggle hidden-xs" data-toggle="dropdown" id='usermenu-dropdown'>
                                         {% if characterID > 0 %}
                                             <img id='char-image' src="{{ image_character }}{{ characterID }}/portrait?size=32" style='height: 32px; width: 32px; padding: 0px; margin: 0px; margin-top: -8px;'/>
-                                        {% else %}<img id='char-image' src="/img/transparent_32.png" style='height: 32px; width: 32px; padding: 0px; margin: 0px; margin-top: -8px;'/>
+                                        {% else %}
+                                            <img id='char-image' src="/img/transparent_32.png" style='height: 32px; width: 32px; padding: 0px; margin: 0px; margin-top: -8px;'/>
                                         {% endif %}
                                         <span class="caret"></span></a>
 					<a href="#" class="dropdown-toggle hidden-lg hidden-md hidden-sm" data-toggle="dropdown">Account <span class="caret"></span></a>
@@ -130,7 +98,6 @@
 							<form action="/ccplogin/" id="loginform">
 								<label class="checkbox"><input type="checkbox" name="scopes[]" value="esi-killmails.read_killmails.v1" checked>Fetch killmails?</label>
 								<label class="checkbox"><input type="checkbox" name="scopes[]" value="esi-fittings.write_fittings.v1" checked>Save Fittings?</label>
-								<label class="checkbox"><input type="checkbox" name="scopes[]" value="esi-universe.read_structures.v1" checked>Fetch Citadel Names &amp; Locations?</label>
 								<input id='ssologinimage' type="image" src="/img/ssologin.png">
 							</form>
                                                 </ul>

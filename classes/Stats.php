@@ -87,7 +87,7 @@ class Stats
             $pipeline[] = ['$unwind' => '$involved'];
         }
         if ($type != null && $id != null) {
-            $pipeline[] = ['$match' => [$type => $id, 'involved.isVictim' => false]];
+            //$pipeline[] = ['$match' => [$type => $id, 'involved.isVictim' => false]];
         }
         $pipeline[] = ['$match' => [$keyField => ['$ne' => null]]];
         $pipeline[] = ['$match' => $andQuery];
@@ -100,7 +100,7 @@ class Stats
         $pipeline[] = ['$project' => [$groupByColumn => '$_id', 'kills' => 1, '_id' => 0]];
 
         $rr = $killmails->aggregate($pipeline, ['cursor' => ['batchSize' => 1000], 'allowDiskUse' => true]);
-	$result = $rr['result'];
+        $result = $rr['result'];
 
         $time = $timer->stop();
         if ($time > $longQueryMS) {
@@ -167,7 +167,7 @@ class Stats
         $pipeline[] = ['$group' => ['_id' => 'total', 'value' => ['$sum' => 1]]];
 
         $result = $mdb->getCollection('oneWeek')->aggregateCursor($pipeline, ['cursor' => ['batchSize' => 1000], 'allowDiskUse' => true]);
-        MongoCursor::$timeout = -1;
+        //MongoCursor::$timeout = -1;
         $result = iterator_to_array($result);
 
         $time = $timer->stop();
@@ -187,7 +187,7 @@ class Stats
     {
         global $mdb;
 
-        $parameters['npc'] = false;
+        $parameters['labels'] = 'pvp';
         $key = 'stats:activepvp:'.serialize($parameters);
         $activePvp = RedisCache::get($key);
         if ($activePvp != null) {

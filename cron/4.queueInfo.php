@@ -1,17 +1,17 @@
 <?php
 
 $master = true;
-/*$pid = pcntl_fork();
+$pid = pcntl_fork();
 $master = ($pid != 0);
 pcntl_fork();
-pcntl_fork();*/
+pcntl_fork();
 
 use cvweiss\redistools\RedisTimeQueue;
 use cvweiss\redistools\RedisQueue;
 
 require_once '../init.php';
 
-global $queueSocial, $redisQAuthUser;
+global $queueSocial, $redisQAuthUser, $killBotWebhook;
 
 $queueInfo = new RedisQueue('queueInfo');
 $queuePublish = new RedisQueue('queuePublish');
@@ -19,6 +19,7 @@ $queueApiCheck = new RedisQueue('queueApiCheck');
 $queueSocial = new RedisQueue('queueSocial');
 $queueStats = new RedisQueue('queueStats');
 $queueRedisQ = new RedisQueue('queueRedisQ');
+$queueDiscord = new RedisQueue('queueDiscord');
 $statArray = ['characterID', 'corporationID', 'allianceID', 'factionID', 'shipTypeID', 'groupID'];
 
 $minute = date('Hi');
@@ -31,9 +32,9 @@ while ($minute == date('Hi')) {
 
         $queueSocial->push($killID);
         $queueRedisQ->push($killID);
+        $queueDiscord->push($killID);
         $queueApiCheck->push($killID);
         $queuePublish->push($killID);
-        $redis->sadd("padhash_ids", $killID);
 
         $mdb->set("killmails", ['killID' => $killID], ['processed' => true]);
         addActivity($killID);
@@ -128,7 +129,7 @@ function updateEntity($killID, $entity)
         $id = (int) @$entity[$type];
         if ($id <= 1) continue;
 
-        $row = ['type' => $type, 'id' => $id];
+        $row = ['type' => $type, 'id' => (int) $id];
         if ($mdb->count("information", $row) > 0) {
             $rtq = new RedisTimeQueue("zkb:$type", 86400);
             $rtq->add($id);
@@ -137,6 +138,7 @@ function updateEntity($killID, $entity)
 
         $defaultName = "$type $id";
         $mdb->insertUpdate('information', $row, ['name' => $defaultName]);
+        if ($type == 'characterID') $mdb->removeField("information", ['type' => 'characterID', 'id' => $id, 'corporationID' => ['$exists' => false]], 'lastApiUpdate');
         $rtq = new RedisTimeQueue("zkb:$type", 86400);
         $rtq->add($id);
 

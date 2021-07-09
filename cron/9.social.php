@@ -16,7 +16,7 @@ while ($beSocial && $minute == date('Hi')) {
 
 function beSocial($killID)
 {
-    global $mdb, $redis, $fullAddr, $twitterName, $imageServer, $queueSocial;
+    global $mdb, $redis, $fullAddr, $twitterName, $imageServer, $queueSocial, $bigKillBotWebhook;
 
     $twitMin = 10000000000;
     $kill = $mdb->findDoc('killmails', ['killID' => $killID]);
@@ -32,6 +32,7 @@ function beSocial($killID)
     if (in_array($kill['vGroupID'], [1657, 1404, 1406])) $twitMin = 25000000000; // Citadels, Eng. Complexes, and Refineries, 25b
     if ($kill['vGroupID'] == 883) $twitMin += 5000000000; // Rorquals, 15b
     $noTweet = $kill['dttm']->sec < $hours24 || $victimInfo == null || $totalPrice < $twitMin;
+    if (((int) @$kill['locationID']) == 60012256 && $kill['attackerCount'] > 100 && $totalPrice > 1000000000) $noTweet = false; // whack a bot
     if ($noTweet) {
         return;
     }
@@ -60,6 +61,7 @@ function beSocial($killID)
         'image' => $imageServer . "types/" . $victimInfo['shipTypeID'] . "/render?size=128"
     ];
     $redis->publish("public", json_encode($redisMessage, JSON_UNESCAPED_SLASHES));
+    Discord::webhook($bigKillBotWebhook, $url);
     sendMessage($message);
 }
 

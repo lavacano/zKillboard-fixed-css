@@ -36,8 +36,6 @@
 		<ul class="nav navbar-nav hidden-xs">
 			{% if extra.prevKillID %}
 			<li class="hidden-xs"><a href="/kill/{{ extra.prevKillID }}/">&lt;</a></li>
-			<li class="{{ isActive('overview', pageview) }}"><a href="/kill/{{ killdata.info.killID }}/">Overview</a></li>
-			<!--<li class="visible-lg {{ isActive('involved', pageview) }} hidden-xs"><a href="/kill/{{ killdata.info.killID }}/involved/">Involved Pilots ({{ killdata.info.number_involved }})</a></li>-->
 			{% endif %}
 		</ul>
 		<ul class="nav navbar-nav pull-right">
@@ -101,15 +99,19 @@
 </div>
 
 <div class="col-lg-4">
-	        {% if extra.npcOnly %}
+	    {% if extra.npcOnly %}
 		<div class="alert alert-info">This is an NPC Only killmail.<br/>It is not counted in statistics.</div>
 		{% endif %}
+        {% if 'padding' in killdata.info.labels %}
+		    <div class="alert alert-warning"><center>Killboard Padding<br/>It is not counted in statistics.</center></div>
+        {% else %}
 		{% if killdata.info.solo %}
 		<div class="alert alert-success"><center>Solo Killmail</center></div>
 		{% endif %}
 		{% if killdata.info.ganked %}
 		<div class="alert alert-danger"><center>GANKED</center></div>
 		{% endif %}
+        {% endif %}
 		<div class="tab-pane fade in active" id="details">
 			{% if extra.warInfo.dscr %}
 			<div>
@@ -290,7 +292,7 @@ $(document).ready(function() {
 
 
 function loadComments(interval) {
-    $("#commentblock").load('/comment/kill-{{ killdata.info.killID }}/-1/up/');
+    $("#commentblock").load('/cache/bypass/comment/kill-{{ killdata.info.killID }}/-1/up/');
     pubsub('comment:kill-{{ killdata.info.killID }}');
 }
 </script>

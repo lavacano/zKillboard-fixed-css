@@ -30,8 +30,12 @@ class Info
         $data[str_replace('ID', 'Name', $type)] = isset($data['name']) ? $data['name'] : "$type $id";
         switch ($type) {
             case 'solarSystemID':
+                $starID = (int) @$data['star_id'];
+                $starInfo = Info::getInfo('starID', $starID);
+                if ($starInfo != null) $data['sunTypeID'] = $starInfo['type_id'];
+                if ($starInfo == null || $starInfo['type_id'] == null) $data['sunTypeID'] = 3802;
+
                 $data['security'] = @$data['secStatus'];
-                $data['sunTypeID'] = 3802;
                 break;
             case 'characterID':
                 $data['isCEO'] = $mdb->exists('information', ['type' => 'corporationID', 'id' => (int) @$data['corporationID'], 'ceoID' => (int) $id]);
@@ -67,8 +71,13 @@ class Info
         $redisKey = self::getRedisKey($type, $id);
         $data = @self::$infoFieldCache[$redisKey];
         if ($data == null) {
-            $raw = $redis->get($redisKey);
-            if ($raw != null) $data = unserialize($raw);
+            try {
+                $raw = $redis->get($redisKey);
+                if ($raw != null) $data = unserialize($raw);
+            } catch (Exception $ex) { 
+                // some sort of error when trying to unserialize... 
+                $data = null;
+            }
             if ($data == null) $data = self::loadIntoRedis($type, $id);
             self::$infoFieldCache[$redisKey] = $data;
         }
@@ -135,6 +144,15 @@ class Info
         $systemInfo = self::getInfo('solarSystemID', $systemID);
 
         return $systemInfo['security'];
+    }
+
+    public static function getSystemByEpoch($solarSystemID, $epoch) {
+        global $mdb;
+
+        $serverVersion = $mdb->findField("versions", "serverVersion", ['epoch' => ['$gte' => $epoch]], ['epoch' => 1]);
+        if ($serverVersion == null) throw Exception("Unknown server version - bailing");
+        $system = $mdb->findDoc("geography", ['type' => 'solarSystemID', 'id' => $solarSystemID, 'serverVersion' => "$serverVersion"]);
+        return $system;
     }
 
     /**
@@ -234,9 +252,15 @@ class Info
 
         $regionID = (int) $mdb->findField('information', 'regionID', ['cacheTime' => 3600, 'type' => 'solarSystemID', 'id' => (int) $systemID]);
 
-        $data = $mdb->findDoc('information', ['cacheTime' => 3600, 'type' => 'regionID', 'id' => $regionID]);
-        $data['regionID'] = $regionID;
-        $data['regionName'] = isset($data['name']) ? $data['name'] : $regionID;
+        $data = $mdb->findDoc('information', ['cacheTime' => 3600, 'type' => 'regionID', 'id' => (int) $regionID]);
+        try {
+            if (!is_array($data)) $data = ['solarSystemID' => $systemID, "name" => "System $systemID"];
+            $data['regionID'] = $regionID;
+            $data['regionName'] = isset($data['name']) ? $data['name'] : $regionID;
+        } catch (Exception $ex) {
+            Log::log("Bad data in Info ~244\n" . print_r($data));
+            throw $ex;
+        }
 
         return $data;
     }
@@ -416,8 +440,6 @@ class Info
                                 $element['solarSystemSecurity'] = $securityLevel;
                                 $element['systemColorCode'] = self::getSystemColorCode($securityLevel);
                                 $regionInfo = self::getRegionInfoFromSystemID($value);
-                                $element['regionID'] = $regionInfo['regionID'];
-                                $element['regionName'] = $regionInfo['regionName'];
                                 $wspaceInfo = self::getWormholeSystemInfo($value);
                                 if ($wspaceInfo) {
                                     $element['systemClass'] = $wspaceInfo['class'];
@@ -428,7 +450,11 @@ class Info
                         if (!isset($element['constellationID'])) {
                             $element['constellationID'] = Info::getInfoField('solarSystemID', $value, 'constellationID');
                         }
+                        if (!isset($element['regionID'])) {
+                            $element['regionID'] = Info::getInfoField('constellationID', $value, 'regionID');
+                        }
                         $element['constellationName'] = Info::getInfoField('constellationID', $element['constellationID'], 'name');
+                        $element['regionID'] = Info::getInfoField('regionID', $element['regionID'], 'name');
                         break;
                     case 'regionID':
                         if (!isset($element['regionName'])) {
@@ -493,6 +519,7 @@ class Info
             '164' => 'Structure Service Slots',
             '172' => 'Structure Fuel',
             '179' => 'Frigate Bay',
+            '180' => 'Core Room',
             );
 
     /**
@@ -534,6 +561,7 @@ class Info
             '177' => 'Subsystem Hold',
             '64' => 'Unlocked item, can be moved',
             '179' => 'Frigate Bay',
+            '180' => 'Core Room',
             );
 
     /**
@@ -614,7 +642,7 @@ class Info
             'medSlots' => Info::getDogma($shipTypeID, 13),
             'hiSlots' => Info::getDogma($shipTypeID, 14),
             'rigSlots' => Info::getDogma($shipTypeID, 1137)
-                ];
+        ];
 
         return $slotArray;
     }
@@ -664,6 +692,20 @@ class Info
         }
         $redis->setex("zkb:dogma:$typeID:$attr_id", 3600, "null");
         return null;
+    }
+
+    public static function findKillID($unixtime, $which) {
+        global $mdb;
+
+        if ($which != 'start') $unixtime += 59; // start at the end of the minute
+        else $unixtime = $unixtime - ($unixtime % 60); // start at the beginning of the minute
+        $starttime = $unixtime;
+        do {
+            $killID = $mdb->findField("killmails", "killID", ['dttm' => new MongoDate($unixtime)], ['killID' => ($which == 'start' ? 1 : -1)]);
+            $unixtime += ($which == 'start' ? 1 : -1);
+            if (abs($starttime - $unixtime) > 3600) break; // only check 1 hour worth of mails
+        } while ($killID == null);
+        return $killID;
     }
 
     public static $itemIDs = [];

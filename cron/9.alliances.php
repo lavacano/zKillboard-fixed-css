@@ -4,37 +4,26 @@ use cvweiss\redistools\RedisTimeQueue;
 
 require_once '../init.php';
 
+if ($redis->get("zkb:noapi") == "true") exit();
 if ($redis->get("zkb:universeLoaded") != "true") exit("Universe not yet loaded...\n");
 
-if ($redis->get("zkb:reinforced") == true) exit();
-if ($redis->get("zkb:420prone") == "true") exit();
-
 $mdb = new Mdb();
-$queueAllis = new RedisTimeQueue('zkb:allianceID', (3600 * 8));
+$guzzler = new Guzzler();
 
-$i = date('i');
-if ($i == 45 || $queueAllis->size() < 100 ) {
-    $allis = $mdb->find('information', ['type' => 'allianceID']);
-    foreach ($allis as $alli) {
-        $queueAllis->add($alli['id']);
-    }
-}
-
-$guzzler = new Guzzler(2);
-
+$currentSecond = "";
 $minute = date('Hi');
 while ($minute == date('Hi')) {
-    $id = (int) $queueAllis->next();
-    if ($id > 0) {
-        $guzzler->call("$esiServer/v4/alliances/$id/", "success", "fail", ['id' => $id]);
-        while ($guzzler->count() > 0) {
-            $guzzler->tick();
-            sleep(1);
-        }
-        sleep(10);
+    $row = $mdb->findDoc("information", ['type' => 'allianceID', 'id' => ['$gt' => 1]], ['lastApiUpdate' => 1]);
+    if ($row == null) {
+        sleep(1);
+        continue;
     }
-    else sleep(1);
-    $guzzler->tick();
+    $id = $row['id'];
+    while ($currentSecond == date('His')) usleep(50);
+    $currentSecond = date('His');
+
+    $guzzler->call("$esiServer/v4/alliances/$id/", "success", "fail", ['id' => $id]);
+    $guzzler->finish();
 }
 $guzzler->finish();
 
@@ -47,6 +36,7 @@ function success(&$guzzler, &$params, $content)
 
     $content = str_replace('\u', '', $content);
     $alliCrest = json_decode($content, true);
+    if (@$alliCrest['name'] == "") return; // Something wrong with the data, ignore for now
 
     $currentInfo = $mdb->findDoc('information', ['type' => 'allianceID', 'id' => $id]);
 

@@ -72,6 +72,7 @@ $twig->addGlobal('image_alliance', 'https://images.evetech.net/alliances/');
 $twig->addGlobal('image_item', 'https://images.evetech.net/types/');
 $twig->addGlobal('image_ship', 'https://images.evetech.net/types/');
 $twig->addGlobal('esiServer', $esiServer);
+$twig->addGlobal('showTwitch', $showTwitch);
 
 $twig->addGlobal('tqStatus', $redis->get('tqStatus'));
 $twig->addGlobal('tqCount', $redis->get('tqCount'));
@@ -91,8 +92,10 @@ $twig->addGlobal('entityID' , 0);
 $twig->addGlobal('reinforced', $redis->get("zkb:reinforced") == true ? "true" : "false");
 $twig->addGlobal("universeUpdating", $redis->get("zkb:universeLoaded") == "false"? "true" : "false");
 $twig->addGlobal("tobefetched", $redis->get("tobefetched"));
+$twig->addGlobal("tobeStatsCount", $redis->scard("queueStatsSet"));
 
 $noAdPages = array('/account/', '/ticket', '/information/', '/post/', '/ccp');
+global $showAds, $websocket;
 foreach ($noAdPages as $noAdPage) {
     $showAds &= !Util::startsWith($uri, $noAdPage);
 }
@@ -109,6 +112,16 @@ $twig->addglobal('showAnalytics', $showAnalytics);
 $twig->addGlobal('accountBalance', $accountBalance);
 $twig->addGlobal('adFreeMonthCost', $adFreeMonthCost);
 
+// File timestamp
+$timestamp = (int) $redis->get("timestamp");
+if ($timestamp == 0) {
+  $timestamp = time();
+  $redis->set("timestamp", $timestamp);
+}
+$twig->addGlobal("timestamp", $timestamp);
+
+$twig->addGlobal('date', date("md"));
+
 // Display a banner?
 $banner = false;
 if ($banner) {
@@ -117,7 +130,8 @@ if ($banner) {
     //$twig->addGlobal("headerImage", $banner);
 }
 
-$twig->addGlobal('showAds', $showAds);
+$twig->addGlobal('showAds', ($showAds ? 1 : 0));
+$twig->addGlobal('websocket', ($websocket ? 1 : 0));
 $_SERVER['SERVER_NAME'] = $baseAddr;
 
 $twig->addGlobal('KillboardName', (isset($killboardName) ? $killboardName : 'zKillboard'));

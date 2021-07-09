@@ -1,5 +1,9 @@
 <?php
 
+$pid = pcntl_fork();
+$master = ($pid == 0);
+pcntl_fork();
+
 use cvweiss\redistools\RedisQueue;
 
 require_once '../init.php';
@@ -8,23 +12,33 @@ if ($redis->get("tobefetched") > 1000) exit();
 if ($redis->get("zkb:reinforced") == true) exit();
 if ($redis->scard("queueStatsSet") > 1000) exit();
 
-$key = "zkb:topalltime";
-if ($redis->get($key) == "true") exit();
-
 MongoCursor::$timeout = -1;
+$minute = date("Hi");
+$queueTopAllTime = new RedisQueue("queueTopAllTime");
 
-$rows = $mdb->find('statistics', ['calcAlltime' => true], ['shipsDestroyed' => 1]);
-foreach ($rows as $row) {
-    calcTop($row);
+if ($master == true && $queueTopAllTime->size() == 0) {
+    $cursor = $mdb->getCollection("statistics")->find(['calcAlltime' => true]);
+    while ($cursor->hasNext()) {
+        $row = $cursor->next();
+        $queueTopAllTime->push(['type' => $row['type'], 'id' => (int) $row['id']]);
+    }
 }
 
-$redis->setex($key, 3600, "true");
+while ($queueTopAllTime->size() > 0 && date('Hi') == $minute) {
+    $id = $queueTopAllTime->pop();
+    if ($id == null) break;
+    $row = $mdb->findDoc("statistics", $id);
+    calcTop($row);
+}
+pcntl_wait($status);
+pcntl_wait($status);
+pcntl_wait($status);
 
 function calcTop($row)
 {
     global $mdb;
 
-    if ($row['id'] == 0 || $row['type'] == null) return;
+    if (@$row['id'] == 0 || @$row['type'] == null) return;
 
     $currentSum = (int) @$row['shipsDestroyed'];
     //Util::out("TopAllTime: " . $row['type'] . ' ' . $row['id'] . ' - ' . $currentSum);
@@ -42,7 +56,7 @@ function calcTop($row)
 
     $p = $parameters;
     $p['limit'] = 6;
-    $p['categoryID'] = 6;
+    //$p['categoryID'] = 6;
     $topKills = Stats::getTopIsk($p);
     $topKills = array_keys($topKills);
 

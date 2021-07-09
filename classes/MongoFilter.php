@@ -282,6 +282,11 @@ class MongoFilter
                 case 'beforeSequence':
                     $and[] = ['sequence' => ['$lt' => $value]];
                     break;
+                case 'labels':
+                    $and[] = ['labels' => $value];
+                    break;
+                default:
+                    //Log::log("MongoFilter::buildQuery unkonown label $key");
             }
         }
 
@@ -307,7 +312,12 @@ class MongoFilter
 
         if (strlen("$month") < 2) $month = "0$month";
         if (strlen("$day") < 2) $day = "0$day";
-        return (int) $redis->get("zkb:firstkillid:{$year}{$month}{$day}");
+        $first = (int) $redis->get("zkb:firstkillid:{$year}{$month}{$day}");
+        if ($first != 0) return $first;
+
+        $first = (int) Info::findKillID(strtotime("$year$month$day 00:00"), 'start');
+        if ($first == 0) $first = 999999999999;
+        return $first;
     }
 
     public static function getFirstKillIDTime($time)

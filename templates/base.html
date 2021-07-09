@@ -30,11 +30,16 @@
 			<meta name="og:description" content="{{ description }}">
 			<meta name="og:image" content="{{ fullsiteurl }}/img/3D.png">
 		{% endblock %}
+        {% block head %}
+        {% endblock %}
 
 		{% block robots %}
 		{% endblock %}
 
 			<meta name="viewport" content="width=device-width, initial-scale=1.0">
+			{% if showAds %}
+            <script src="https://cdn.fuseplatform.net/publift/tags/2/2136/fuse.js"></script> 
+	    		{% endif %}
 
 		<title>
 			{% block title %}
@@ -55,13 +60,19 @@
 			{% set version = "3.1.1" %}
 		{% endif %}
 
-		<link id="mainstyle" rel="stylesheet" href="//netdna.bootstrapcdn.com/bootswatch/{{ version }}/{{ style }}/bootstrap.min.css">
+		<link id="mainstyle" rel="stylesheet" href="//netdna.bootstrapcdn.com/bootswatch/{{ version }}/cyborg/bootstrap.min.css">
 
-		<link rel="stylesheet" href="//{{ siteurl }}/css/style-edits/{{ style }}-main.css?3" id="nextstyle">
-		<link rel="stylesheet" href="//{{ siteurl }}/css/datepicker.css">
-		<link rel="stylesheet" href="//{{ siteurl }}/css/main.css">
+		<link rel="stylesheet" href="//{{ siteurl }}/css/style-edits/cyborg-main.css?v={{ timestamp }}" id="nextstyle">
+		<link rel="stylesheet" href="//{{ siteurl }}/css/main.css?v={{ timestamp }}">
 		<link rel="stylesheet" href="//{{ siteurl }}/css/nprogress.css">
-		<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.0.3/css/font-awesome.min.css">
+        {% if date == "0401" %}
+		<link rel="stylesheet" href="//{{ siteurl }}/css/fourone.css">
+        {% endif %}
+
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.14.0/css/all.min.css" integrity="sha512-1PKOgIY59xJ8Co8+NE6FZ+LOAZKjy+KY8iq0G4B3CyeY6wYHN3yt9PW0XpSriVlkMXe40PTKnXrLnZ9+fkDaog==" crossorigin="anonymous" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css" integrity="sha512-mSYUmp1HYZDFaVKK//63EcZq4iFWFjxSL+Z3T/aCt4IO9Cejm03q3NKKYN6pFQzY0SBOr8h+eCIAZHPXcpZaNw==" crossorigin="anonymous" />
+
+
 		<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/bootstrap-slider/9.7.2/css/bootstrap-slider.min.css">
 
 		{% block style %}
@@ -77,21 +88,21 @@
 			}
 		</style>
                 <script type="text/javascript">
-                    var showAds = {{ showAds == false ? 0 : 1 }};
-                    var adblocked = true;
+		    var showAds = {{ showAds|default(1) }};
                     var characterID = {{ characterID }};
                     var navbar = true; 
                     var entityType = '{{ entityType }}';
                     var entityID = '{{ entityID }}';
                     var entityPage = '{{ pageType }}';
+		    var start_websocket = {{ websocket }};
                 </script>
-        <script async src="//cdn.publift.com/fuse/tag/2/999/fuse.js"></script>
 	</head>
 	<body>
+        <noscript><div id="nojsfulloverlay">JavaScript required.</div></noscript>
 		<div class="content">
 
 			<!-- The navbar -->
-			<div class="container" id='navibar' style="mgin: 0px; padding: 0px;">
+			<div class="container" id='navibar' style="padding: 0px;">
 				{% include "navigationbar.html" %}
 			</div>
 
@@ -101,7 +112,9 @@
 				{% endif %}
 
 				<!-- Top ad -->
-				<div class="centered" id="adsensetop" style='height: 135px;'></div><hr/>
+				<div class="centered publift ad-xl-none" fuse="home_header" id="adsensetop" style='height: 100px; padding-top: 1em;'></div>
+                <div id='otherBannerDiv' class='centered' style='display: none; height: 100px; padding-top: 1em;'><a id='otherBannerAnchor' target='_new'><img id='otherBannerImg' /></a></div>
+                <hr/>
 
                 <span class='pagecontent'>{% endif %}
 				<!-- The text header -->
@@ -113,10 +126,14 @@
 				<div class="clearfix"></div>
 
 				<!-- Bottom ad -->
-				<div class="centered" id="adsensebottom"></div>
+				<div class="centered publift ad-xl-none" fuse="home_footer" id="adsensebottom"></div>
 
 				<!-- Footer -->
 				<div class="hidden-xs">{% include "footer.html" %}</div>
+
+                <!-- Interstitial Ad -->
+                <div class="ad-sm-block bottom-padding"></div>
+                <div class="centered publift ad-sm-block bottom-interstitial" fuse="bottom-interstitial" id="bottominterstitial"></div>
 			</div>
 
 			<!-- Modals -->
@@ -125,14 +142,17 @@
 			</div>
 		</div>
 
-		<script type="text/javascript" src="//{{ siteurl }}/js/jquery-1.11.0.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.devbridge-autocomplete/1.4.11/jquery.autocomplete.min.js" integrity="sha512-uxCwHf1pRwBJvURAMD/Gg0Kz2F2BymQyXDlTqnayuRyBFE7cisFCh2dSb1HIumZCRHuZikgeqXm8ruUoaxk5tA==" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js" integrity="sha512-T/tUfKSV1bihCnd+MxKD0Hm1uBBroVYBOYSk1knyvQ9VyZJpc/ALb4P0r6ubwVPSGB2GvjeoMAJJImBG12TiaQ==" crossorigin="anonymous"></script>
+
 		<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/jquery-timeago/1.1.0/jquery.timeago.min.js"></script>
 		<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/datatables/1.9.4/jquery.dataTables.min.js"></script>
 		<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.1.1/js/bootstrap.min.js"></script>
 		<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/bootstrap-slider/9.7.2/bootstrap-slider.min.js"></script>
-		<script type="text/javascript" src="//{{ siteurl }}/js/bootstrap-datepicker.js"></script>
-		<script type="text/javascript" src="//{{ siteurl }}/js/search.js"></script>
-		<script type="text/javascript" src="//{{ siteurl }}/js/common.js?t=202007301530"></script>
+
+		<script type="text/javascript" src="//{{ siteurl }}/js/search.js?v={{ timestamp }}"></script>
+		<script type="text/javascript" src="//{{ siteurl }}/js/common.js?v={{ timestamp }}"></script>
 		<script type="text/javascript" src="//{{ siteurl }}/js/sclock1.js"></script>
 		<script type="text/javascript" src="//{{ siteurl }}/js/nprogress.js"></script>
                 <script type="text/javascript" src="/js/reconnecting-websocket.js"></script>
@@ -180,7 +200,7 @@
                 <div class="modal-content">
                         <div class="modal-header">
                                 <span id='modalTitle' class="modal-title">Message</span>
-                                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true" style="color: red; font-weight: bold;">X</span></button>
+                                <button id='modalCloseButton' type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true" style="color: red; font-weight: bold;">X</span></button>
                         </div>
                         <div class="modal-body">
                                 <form name="myform" class="form">
@@ -202,27 +222,28 @@
                 </div>
         </div>
 </div>
-<!--<link rel="stylesheet" type="text/css" href="//cdnjs.cloudflare.com/ajax/libs/cookieconsent2/3.0.3/cookieconsent.min.css" />
-<script src="//cdnjs.cloudflare.com/ajax/libs/cookieconsent2/3.0.3/cookieconsent.min.js"></script>
-<script>
-window.addEventListener("load", function(){
-window.cookieconsent.initialise({
-  "palette": {
-    "popup": {
-      "background": "#216942",
-      "text": "#b2d192"
-    },
-    "button": {
-      "background": "transparent",
-      "text": "#afed71",
-      "border": "#afed71"
-    }
-  },
-  "showLink": false
-})});
-</script>
--->
-		<script type="text/javascript" src="//{{ siteurl }}/js/ads.js"></script>
+<div class="modal fade" id="login-modal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">Login to Win!</h4>
+            </div>
+            <div class="modal-body">
+                <p>To celebrate zKillboard's addition to the Eve Online Partnership Program, we are celebrating by giving out several Astero Scope Syndication YC122 SKINs! All you have to do for a chance to win is login! Giveways will happen on Dec. 15, 18, 21, 24, 28, ... until I run out of SKINs.<p>
+                <div>
+                           <form action="/ccplogin/" id="loginform">
+                                <label class="checkbox"><input type="checkbox" name="scopes[]" value="esi-killmails.read_killmails.v1" checked>Fetch killmails?</label>
+                                <label class="checkbox"><input type="checkbox" name="scopes[]" value="esi-fittings.write_fittings.v1" checked>Save Fittings?</label>
+                                <input id='ssologinimage' type="image" src="/img/ssologin.png">
+                            </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="ad-xl-block"><div class="ad-xl-block left-sticky-ad publift" fuse="left-sticky"></div></div>
+<div class="ad-xl-block"><div class="ad-xl-block right-sticky-ad publift" fuse="right-sticky"></div></div>
+
 </body>
 </html>
 {% endif %}

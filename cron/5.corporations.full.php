@@ -8,6 +8,7 @@ global $debug;
 
 if ($redis->get("zkb:reinforced") == true) exit();
 if ($redis->get("zkb:420prone") == "true") exit();
+if ($redis->get("zkb:noapi") == "true") exit();
 
 $guzzler = new Guzzler();
 
@@ -87,7 +88,7 @@ function success($guzzler, $params, $content)
         $newKills += addMail($killID, $hash);
     }
 
-    if (sizeof($kills)) {
+    if (sizeof($kills) >= 1000) {
         $params['newKills'] = $newKills;
         $params['max_kill_id'] = $minKillID;
         $params['maxKillID'] = $maxKillID;
@@ -136,10 +137,7 @@ function addMail($killID, $hash)
 
 function fail($guzzer, $params, $ex) 
 {
-    global $mdb;
-
-    Util::out("??? not removed");
-    $mdb->removeField("scopes", $params['row'], "iterated");
+    // Something went wrong, we'll just try again later
 }
 
 function accessTokenFail(&$guzzler, &$params, $ex)
@@ -161,7 +159,6 @@ function accessTokenFail(&$guzzler, &$params, $ex)
     switch ($code) {
         case 403: // A 403 without an invalid_grant is invalid
             $mdb->remove("scopes", $row);
-            Util::out("403'd removed");
             break;
         case 500:
         case 502: // Server error, try again in 5 minutes

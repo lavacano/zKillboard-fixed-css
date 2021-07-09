@@ -1,7 +1,9 @@
 <?php
 
-pcntl_fork();
-pcntl_fork();
+$master = true;
+/*$pid = pcntl_fork();
+$master = ($pid != 0);
+pcntl_fork();*/
 
 use cvweiss\redistools\RedisQueue;
 
@@ -13,11 +15,26 @@ if ($redis->get("zkb:statsStop") == "true") exit();
 if ($redis->get("zkb:reinforced") == true) exit();
 MongoCursor::$timeout = -1;
 $queueStats = new RedisQueue('queueStats');
-
 $minute = date('Hi');
+
+if ($master && $redis->scard("queueStatsSet") < 1000) {
+    // Look for resets in statistics and add them to the queue
+    $cursor = $mdb->getCollection("statistics")->find(['reset' => true]);
+    while ($cursor->hasNext()) {
+        $row = $cursor->next();
+        $raw = $row['type'] . ":" . $row['id'];
+        $redis->sadd("queueStatsSet", $raw);
+    }
+}
+
 while ($minute == date('Hi')) {
     $raw = $redis->spop("queueStatsSet");
-    if ($raw == null) break;
+    if ($raw == null) {
+        if (!$master) break;
+        sleep(1);
+        continue;
+    }
+
     $arr = split(":", $raw);
     $maxSequence = $mdb->findField("killmails", "sequence", [], ['sequence' => -1]);
     $type = $arr[0];
@@ -75,23 +92,23 @@ function calcStats($row, $maxSequence)
         }
 
         // build the query
-        $query = [$row['type'] => $row['id'], 'isVictim' => $isVictim, 'npc' => false];
-        if ($isVictim == false) unset($query['npc']); // Allows NPCs to count their kills
+        $query = [$row['type'] => $row['id'], 'isVictim' => $isVictim, 'labels' => 'pvp'];
+        //if ($isVictim == false) unset($query['label']); // Allows NPCs to count their kills
         $query = MongoFilter::buildQuery($query);
         // set the proper sequence values
         $query = ['$and' => [['sequence' => ['$gt' => $oldSequence]], ['sequence' => ['$lte' => $newSequence]], $query]];
 
-        $allTime = $mdb->group('killmails', [], $query, 'killID', ['zkb.points', 'zkb.totalValue']);
+        $allTime = $mdb->group('killmails', [], $query, 'killID', ['zkb.points', 'zkb.totalValue', 'attackerCount']);
         mergeAllTime($stats, $allTime, $isVictim);
 
-        $groups = $mdb->group('killmails', 'vGroupID', $query, 'killID', ['zkb.points', 'zkb.totalValue'], ['vGroupID' => 1]);
+        $groups = $mdb->group('killmails', 'vGroupID', $query, 'killID', ['zkb.points', 'zkb.totalValue', 'attackerCount'], ['vGroupID' => 1]);
         mergeGroups($stats, $groups, $isVictim);
 
-        $months = $mdb->group('killmails', ['year' => 'dttm', 'month' => 'dttm'], $query, 'killID', ['zkb.points', 'zkb.totalValue'], ['year' => 1, 'month' => 1]);
+        $months = $mdb->group('killmails', ['year' => 'dttm', 'month' => 'dttm'], $query, 'killID', ['zkb.points', 'zkb.totalValue', 'attackerCount'], ['year' => 1, 'month' => 1]);
         mergeMonths($stats, $months, $isVictim);
 
-        $query = [$row['type'] => $row['id'], 'isVictim' => $isVictim, 'npc' => false, 'solo' => true];
-        if ($isVictim == false) unset($query['npc']); // Allows NPCs to count their kills
+        $query = [$row['type'] => $row['id'], 'isVictim' => $isVictim, 'labels' => 'pvp','solo' => true];
+        //if ($isVictim == false) unset($query['label']); // Allows NPCs to count their kills
         $query = MongoFilter::buildQuery($query);
         $key = "solo" . ($isVictim ? "Losses" : "Kills");
         if (isset($stats[$key])) {
@@ -103,6 +120,7 @@ function calcStats($row, $maxSequence)
 
     // Update the sequence
     $stats['sequence'] = $newSequence;
+    $stats['epoch'] = time();
 
     if (@$stats['shipsLost'] > 0) {
         $destroyed = @$stats['shipsDestroyed']  + @$stats['pointsDestroyed'];
@@ -148,7 +166,9 @@ function mergeAllTime(&$stats, $result, $isVictim)
     if (!isset($stats["isk$dl"])) {
         $stats["isk$dl"] = 0;
     }
+    if (!isset($stats["attackers$dl"])) $stats["attackers$dl"] = 0;
     $stats["isk$dl"] += (int) $row['zkb_totalValueSum'];
+    $stats["attackers$dl"] += (int) $row['attackerCountSum'];
 }
 
 function mergeGroups(&$stats, $result, $isVictim)

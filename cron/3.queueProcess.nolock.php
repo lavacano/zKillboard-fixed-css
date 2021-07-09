@@ -1,11 +1,12 @@
 <?php
 
 $master = true;
-/*$pid = pcntl_fork();
+$pid = pcntl_fork();
 $master = ($pid != 0);
 pcntl_fork();
 pcntl_fork();
-pcntl_fork();*/
+pcntl_fork();
+
 
 use cvweiss\redistools\RedisQueue;
 use cvweiss\redistools\RedisTtlCounter;
@@ -44,7 +45,7 @@ while ($minute == date('Hi')) {
             $killID = (int) $killID[0];
             $redis->zrem("tobeparsed", $killID);
 
-            $row = $mdb->findDoc('crestmails', ['killID' => $killID, 'processed' => false]);
+            $row = $mdb->findDoc('crestmails', ['killID' => $killID, 'processed' => false], ['killID' => -1]);
             if ($row == null) $row = $mdb->findDoc('crestmails', ['killID' => $killID]);
         }
 
@@ -58,6 +59,7 @@ while ($minute == date('Hi')) {
 
         $kill = array();
         $kill['killID'] = $killID;
+        $kill['labels'] = [];
 
         $date = substr($mail['killmail_time'], 0, 19);
         $date = str_replace('.', '-', $date);
@@ -66,6 +68,12 @@ while ($minute == date('Hi')) {
 
         $systemID = (int) $mail['solar_system_id'];
         $system = Info::getInfo('solarSystemID', $systemID);
+        $system = Info::getSystemByEpoch($systemID, $kill['dttm']->sec);
+        if ($system == null) {
+            $redis->zadd("tobeparsed", $killID, $killID);
+            $redis->del("zkb:universeLoaded");
+            throw new Exception("NULL SYSTEM");
+        }
 
         $solarSystem = array();
         $solarSystem['solarSystemID'] = $systemID;
@@ -82,6 +90,7 @@ while ($minute == date('Hi')) {
         $kill['sequence'] = $sequence;
 
         $kill['attackerCount'] = sizeof($mail['attackers']);
+
         $victim = createInvolved($mail['victim']);
         $victim['isVictim'] = true;
         $kill['vGroupID'] = $victim['groupID'];
@@ -102,14 +111,45 @@ while ($minute == date('Hi')) {
 
         $items = $mail['victim']['items'];
         $i = array();
-        $destroyedValue = 0;
-        $droppedValue = 0;
+        $destroyedValue = getDValue($killID, $items, $date, false);
+        $droppedValue = getDValue($killID, $items, $date, true);
 
         $shipValue = Price::getItemPrice($mail['victim']['ship_type_id'], $date);
+        $destroyedValue += $shipValue;
         $fittedValue = getFittedValue($killID, $mail['victim']['items'], $date);
         $fittedValue += $shipValue;
         $totalValue = processItems($killID, $mail['victim']['items'], $date);
         $totalValue += $shipValue;
+
+        $isPaddedKill = false;
+        $padhash = getPadHash($kill);
+        if ($padhash != null) {
+            $isPaddedKill = ($mdb->count("killmails", ['padhash' => $padhash]) >= 5);
+            $kill['padhash'] = $padhash;
+        }
+
+        addLabel($kill, $isPaddedKill, 'padding');
+        addLabel($kill, true, "cat:" . $kill['categoryID']); 
+        $countflag = addLabel($kill, $kill['solo'], 'solo');
+        if ($countflag == false) $countflag = addLabel($kill, $kill['attackerCount'] >= 1000, '1000+');
+        if ($countflag == false) $countflag = addLabel($kill, $kill['attackerCount'] >= 100, '100+');
+        if ($countflag == false) $countflag = addLabel($kill, $kill['attackerCount'] >= 50, '50+');
+        if ($countflag == false) $countflag = addLabel($kill, $kill['attackerCount'] >= 25, '25+');
+        if ($countflag == false) $countflag = addLabel($kill, $kill['attackerCount'] >= 10, '10+');
+        if ($countflag == false) $countflag = addLabel($kill, $kill['attackerCount'] >= 5, '5+');
+        if ($countflag == false) $countflag = addLabel($kill, $kill['attackerCount'] >= 2, '2+');
+        addLabel($kill, $kill['npc'], 'npc');
+        addLabel($kill, !($kill['npc'] == true || $isPaddedKill), 'pvp');
+        addLabel($kill, $kill['awox'], 'awox');
+        addLabel($kill, $solarSystem['security'] >= 0.45, 'highsec');
+        addLabel($kill, $solarSystem['security'] < 0.45 && $solarSystem['security'] >= 0.05, 'lowsec');
+        addLabel($kill, $solarSystem['security'] < 0.05 && $solarSystem['regionID'] < 11000001, 'nullsec');
+        addLabel($kill, $solarSystem['regionID'] >= 11000000 && $solarSystem['regionID'] < 12000000, 'w-space');
+        addLabel($kill, $solarSystem['regionID'] >= 12000000 && $solarSystem['regionID'] < 13000000, 'abyssal');
+        addLabel($kill,  $totalValue > 1000000000, '1b+');
+        addLabel($kill,  $totalValue > 10000000000, '10b+');
+        addLabel($kill,  $totalValue > 100000000000, '100b+');
+        addLabel($kill,  $totalValue > 1000000000000, '1t+');
 
         $zkb = array();
 
@@ -122,6 +162,8 @@ while ($minute == date('Hi')) {
 
         $zkb['hash'] = $row['hash'];
         $zkb['fittedValue'] = round((double) $fittedValue, 2);
+        $zkb['droppedValue'] = round((double) $droppedValue, 2);
+        $zkb['destroyedValue'] = round((double) $destroyedValue, 2);
         $zkb['totalValue'] = round((double) $totalValue, 2);
         $zkb['points'] = ($kill['npc'] == true) ? 1 : (int) Points::getKillPoints($killID);
         $kill['zkb'] = $zkb;
@@ -139,6 +181,15 @@ while ($minute == date('Hi')) {
         $mdb->set('crestmails', $row, ['processed' => true]);
     } else if (!$master) break;
     else usleep(50000);
+}
+
+function addLabel(&$kill, $condition, $label)
+{
+    if ($condition === true) {
+        $kill['labels'][] = $label;
+        return true;
+    }
+    return false;
 }
 
 function saveMail($mdb, $collection, $kill)
@@ -191,12 +242,38 @@ function getFittedValue($killID, $items, $dttm)
 
     $fittedValue = 0;
     foreach ($items as $item) {
+        $typeID = (int) $item['item_type_id'];
+        if ($typeID == 0) continue;
+
         $infernoFlag = Info::getFlagLocation($item['flag']);
-        $add = in_array($item['flag'], $fittedArray);
-        if ($add) $fittedValue += processItem($killID, $item, $dttm, false, 0);
+        $add = in_array($infernoFlag, $fittedArray);
+        if ($add) {
+            $qty = ((int) @$item['quantity_dropped'] + (int) @$item['quantity_destroyed']);
+            $price = Price::getItemPrice($typeID, $dttm);
+            $fittedValue += ($qty * $price);
+        }
     }
     return $fittedValue;
 }
+
+function getDValue($killID, $items, $dttm, $dropped)
+{
+    global $fittedArray;
+
+    $droppedOrDestroyed = 'quantity_' . ($dropped == true ? 'dropped' : 'destroyed');
+
+    $dValue = 0;
+    foreach ($items as $item) {
+        $typeID = (int) $item['item_type_id'];
+        if ($typeID == 0) continue;
+
+        $qty = ((int) @$item[$droppedOrDestroyed]);
+        $price = Price::getItemPrice($typeID, $dttm);
+        $dValue += ($qty * $price);
+    }
+    return $dValue;
+}
+
 
 function processItems($killID, $items, $dttm, $isCargo = false, $parentFlag = 0)
 {
@@ -354,4 +431,37 @@ function isNPC(&$killmail)
     }
 
     return true;
+}
+
+// https://forums.eveonline.com/default.aspx?g=posts&m=4900335#post4900335
+function getPadHash($killmail)
+{
+    global $mdb;
+
+    if ($killmail['npc'] == true) return;
+
+    $victim = array_shift($killmail['involved']);
+    $victimID = (int) @$victim['characterID'] == 0 ? 'None' : $victim['characterID'];
+    if ($victimID == 0) return;
+    $shipTypeID = (int) $victim['shipTypeID'];
+    if ($shipTypeID == 0) return;
+    $categoryID = (int) Info::getInfoField('groupID', $victim['groupID'], 'categoryID');
+    if ($categoryID != 6) return; // Only ships, ignore POS modules, etc.
+
+    $attackers = $killmail['involved'];
+    while ($next = array_shift($attackers)) {
+        if (@$next['finalBlow'] == false) continue;
+        $attacker = $next;
+        break;
+    }
+    if ($attacker == null) $attacker = $attackers[0];
+    $attackerID = (int) @$attacker['characterID'];
+
+    $dttm = $killmail['dttm']->sec;
+    $dttm = $dttm - ($dttm % 60);
+
+    $aString = "$victimID:$attackerID:$shipTypeID:$dttm";
+    $aSha = sha1($aString);
+    return $aSha;
+    //$mdb->set("oneWeek", $killmail, ['padhash' => $aSha]);
 }

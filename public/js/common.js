@@ -29,15 +29,22 @@ $(document).ready(function() {
     });
 
     // setup websocket with callbacks
-    ws = new ReconnectingWebSocket('wss://zkillboard.com:2096/', '', {maxReconnectAttempts: 15});
+    if (start_websocket) {
+    ws = new ReconnectingWebSocket('wss://' + window.location.hostname + '/websocket/', '', {maxReconnectAttempts: 15});
     ws.onmessage = function(event) {
         wslog(event.data);
     };
     ws.onopen = function(event) {
         pubsub('public');
+        // If we connected and somehow got completely disconnected - reload the page
+        ws.onclose = function(event) {
+            //window.location = window.location;
+        }
+      }
     }
 
     addKillListClicks();
+
     /*var pathname = $(location).attr('pathname');
     console.log(pathname.substr(0,9));
     if (pathname != '/map/' && pathname.substr(0, 9) != '/account/') {
@@ -98,7 +105,7 @@ function wslog(msg)
         $("#commentblock").html(json.html);
     } else if (json.action === 'littlekill') {
         var killID = json.killID;
-        setTimeout(function() { loadLittleMail(killID); }, Math.floor(1 + (Math.random() * 10000)));
+        setTimeout(function() { loadLittleMail(killID); }, 1);
     } else {
         console.log("Unknown action: " + json.action);
     }
@@ -107,15 +114,25 @@ function wslog(msg)
 function loadLittleMail(killID) {
         // Add the killmail to the kill list
         $.get("/cache/1hour/killlistrow/" + killID + "/", function(data) {
-            $(data).insertBefore("#killlist tbody tr:first").on('click', function(event) {
-                if (event.which === 2) return false;
-                window.location = '/kill/' + $(this).attr('killID') + '/';
-                return false;
-            });
+            if (!(showAds != 0 && typeof fusetag == 'undefined')) {
+                var data = $(data);
+                data.on('click', function(event) {
+                    if (event.which === 2) return false;
+                    window.location = '/kill/' + $(this).attr('killID') + '/';
+                    return false;
+                });
+                if (showAds == 0) $("#killlist tbody tr").first().before(data);
+                else $("#killlist tbody tr").eq(0).after(data);
+            }
             // Keep the page from growing too much...
             while ($("#killlist tbody tr").length > 50) $("#killlist tbody tr:last").remove();
             // Tell the user what's going on and not to expect sequential killmails
-            if ($("#livefeednotif").length == 0) $("#killlist thead tr").after("<tr><td id='livefeednotif' colspan='7'><strong><em>Live feed - killmails may be out of order.</em></strong></td></tr>");
+            if ($("#livefeednotif").length == 0) {
+                if (showAds != 0 && typeof fusetag == 'undefined')
+                    $("#killlist thead tr").after("<tr><td id='livefeednotif' colspan='7'><strong><em>Live feed disabled when adblockers present.</em></strong></td></tr>");
+                else
+                    $("#killlist thead tr").after("<tr><td id='livefeednotif' colspan='7'><strong><em>Live feed - killmails may be out of order.</em></strong></td></tr>");
+            }
         });
 }
 
@@ -128,7 +145,7 @@ function audio(uri)
 
 function saveFitting(id) {
     $('#modalMessageBody').html('Saving fit....');
-    $('#modalMessage').modal('show');
+    $('#modalMessage').modal({backdrop: true, keyboard: true, show: true});
 
     var request = $.ajax({
         url: "/ccpsavefit/" + id + "/",
@@ -138,7 +155,7 @@ function saveFitting(id) {
 
     request.done(function(msg) {
         $('#modalMessageBody').html(msg);
-        $('#modalMessage').modal('show');
+        $('#modalMessage').modal({backdrop: true, keyboard: true, show: true});
     });
 }
 
@@ -224,7 +241,7 @@ function doSponsor(url)
 {
     $('#modalMessageBody').load(url);
     $('#modalTitle').text('Sponsor this killmail');
-    $('#modalMessage').modal()
+    $('#modalMessage').modal({backdrop: true, keyboard: true, show: true});
 }
 
 function doFavorite(killID) {
@@ -236,7 +253,7 @@ function doFavorite(killID) {
         $("#fav-star-killmail").css("color", result.color);
         $('#modalTitle').text('Favorites');
         $('#modalMessageBody').text(result.message);
-        $('#modalMessage').modal()
+        $('#modalMessage').modal({backdrop: true, keyboard: true, show: true});
     });
 }
 
@@ -262,19 +279,114 @@ function curday()
     return (yyyy+mm+dd);
 };
 
+function commentUpVote(pageID, commentID) 
+{
+    if (showAds == 0 || typeof fusetag != "undefined") $.ajax("/cache/bypass/comment/" + pageID + "/" + commentID + "/up/");
+    else annoyAdBlockers();
+}
+
+var adnumber = 0;
+function loadads() {
+    var adblocks = $(".publift:visible");
+    adnumber = adblocks.length;
+    adblocks.each(function() {
+            var elem = $(this);
+            var fuse = elem.attr("fuse");
+            elem.load('/cache/1hour/publift/' + fuse + '/', adblockloaded);
+    });
+}
+
+var bottomad = null;
+function adblockloaded() {
+    adnumber--;
+    if (adnumber <= 0) {
+        try {
+            bottomad = $("#adsensebottom").detach();
+            $("#detailadrow").html(bottomad.html());
+            killListAd(false);
+            fusetag.loadSlots();
+            setTimeout(adBlockCheck, 5000);
+        } catch (e) {
+            adBlockCheck();
+        }
+    }
+}
+
+function killListAd(doLoadSlots) {
+    if ($(".adrow").length == 0 && bottomad != null) {
+        var td = $("<td colspan='8' style='width: 100%;'>") ; bottomad.appendTo(td); var tr = $("<tr class='killlistrow adrow ad-xl-none'>").append(td).insertBefore("#killlist tbody tr:first");
+        if (doLoadSlots === true) fusetag.loadSlots();
+    }
+}
+
 function adBlockCheck() {
-    if (showAds != 0 && $("iframe").length == 0 ) {
+    if (showAds != 0 && typeof fusetag == "undefined") {
         console.log("Ads are blocked :(");
-        //$("#adsensetop, #adsensebottom").html("<center><strong>Would you kindly unblock ads?</strong><br/><a href='/information/payments/'>Or block them with ISK and get a golden wreck too.</a></center>");
-        //$("#adsensetop, #adsensebottom").html('<a target="_new" href="https://brave.com/zki349"><img src="//zkillboard.com/img/brave_switch.png" alt="Switch to the Brave Browser"></a>');
-        $("#adsensetop, #adsensebottom").html('<a target="_new" href="https://www.patreon.com/zkillboard"><img src="/img/patreon_lg.jpg"></a>');
+        $("#adsensetop, #adsensebottom").html('<a target="_new" href="https://zkillboard.com/cache/bypass/login/patreon/"><img src="/img/patreon_lg.jpg"></a>');
         var today = curday();
         if (!localStorage.getItem('adblocker-nag-' + today)) {
             localStorage.setItem('adblocker-nag-' + today, true);
-            $('#modalMessageBody').html('<h2>Would you kindly unblock ads?</h2><p>zKillboard only shows 2 advertisements from Google Adsense and the ads are designed to be non-intrusive of your viewing experience. Please support zKillboard by disabling your adblocker.</p><p><a href="/information/payments/">Or block them with ISK and get a golden wreck too.</a></p><p><a target="_new" href="https://www.patreon.com/zkillboard"><img src="/img/patreon_lg.jpg"></a></p><p><a target="_new" href="https://brave.com/zki349"><img src="//zkillboard.com/img/brave_switch.png" alt="Switch to the Brave Browser"></a></p>');
-            $('#modalMessage').modal('show');
+            annoyAdBlockers();
         }
-    } else if (showAds == 1) {
-        setInterval(function() { $("#adsensetop").load('/cache/1hour/google/'); }, 60000);
     }
+}
+
+function annoyAdBlockers() {
+    if (showAds != 0 && typeof fusetag == "undefined") {
+            $(this).blur();
+            $('#modalMessageBody').html('<h2>Would you kindly unblock ads?</h2><p>zKillboard only shows 2 advertisements and the ads are designed to be non-intrusive of your viewing experience. Please support zKillboard by disabling your adblocker.</p><p><a href="/information/payments/">Or block them with ISK and get a golden wreck too.</a></p><p><a target="_new" href="https://www.patreon.com/zkillboard"><img src="/img/patreon_lg.jpg"></a></p><p><a target="_new" href="https://brave.com/zki349"><img src="//zkillboard.com/img/brave_switch.png" alt="Switch to the Brave Browser"></a></p>');
+            $('#modalMessage').modal({backdrop: true, keyboard: true, show: true});
+
+    }
+}
+
+var now = time();
+var today = now - (now % 86400);
+var week = now - (now % 604800);
+function knowledgeCheck() {
+    if (typeof window.obsstudio != 'undefined') return;
+    if (!localStorage.getItem('knowledgecheck-' + week)) {
+        likeOMGwhereAREtheKILLMAILS();
+    }
+
+}
+
+function likeOMGwhereAREtheKILLMAILS() {
+    $(document).blur();
+    $('#modalMessageBody').html('<h4>zKillboard does NOT automatically get all killmails</h4><p>zKillboard does not get all killmails automatically. CCP does not make killmails public. They must be provided by various means.</p><ul><li>Someone manually posts the killmail.</li><li>A character has authorized zKillboard to retrieve their killmails.</li><li>A corporation director or CEO has authorized zKillboard to retrieve their corporation\'s killmails.</li><li>War killmail (victim and final blow have a Concord sanctioned war with each other)</li></ul><p>The killmail API works just like killmails do in game. The victim gets the killmail, and the person with the finalblow gets the killmail. Therefore, for zKillboard to be able to retrieve the killmail via API it must have the character or corporation API submitted for the victim or the person with the final blow. If an NPC gets the final blow, the last character to aggress to the victim will receive the killmail and credit for the final blow.</p><p>Remember, every PVP killmail has two sides, the victim and the aggressors. Victims often don\'t want their killmails to be made public, however, the aggressors do.</p><btn onclick="okIgetit();" class="btn btn-success btn-block">OK</btn>');
+    $('#modalCloseButton').hide();
+    $('#modalMessage').modal({backdrop: 'static', keyboard: false, show: true});
+}
+
+function okIgetit() {
+    console.log('*sigh*');
+    $('#modalCloseButton').show();
+    $('#modalMessage').modal('hide');
+    try {
+        localStorage.setItem('knowledgecheck-' + week, true);
+    } catch (e) {
+        console.log(e);
+        alert('Something prevented the site from saving that you acknowledged the popup...');
+    }
+}
+
+function time() {
+    return Math.floor(Date.now() / 1000);
+}
+
+// gtcplex320.jpg  gtcplex728.jpg  merch320.jpg  merch728.jpg
+var banner_links = ['https://store.markeedragon.com/affiliate.php?id=928&redirect=index.php?cat=4', 'https://www.zazzle.com/store/zkillboard/products'];
+var banners_sm = ['/img/banners/gtcplex320.jpg', '/img/banners/merch320.jpg'];
+var banners_lg = ['/img/banners/gtcplex728.jpg?1', '/img/banners/merch728.jpg'];
+function otherBanners() {
+    if (showAds != 1) return;
+    if ($("#adsensetop:visible").length > 0) return;
+
+
+    var minute = new Date().getMinutes();
+    var mod = minute % 2; // number of other banners
+    $('#otherBannerAnchor').attr('href', banner_links[mod]);
+    $('#otherBannerImg').attr('src', banners_lg[mod]);
+    $("#otherBannerDiv").css('display', 'block');
+    setTimeout(otherBanners, Math.min(30000, 1000 * (61 - new Date().getSeconds())));
 }

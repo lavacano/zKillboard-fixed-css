@@ -4,6 +4,7 @@ require_once '../init.php';
 
 global $fetchWars;
 
+if ($redis->get("zkb:noapi") == "true") exit();
 if ($fetchWars == null || $fetchWars == false) {
     exit();
 }
@@ -39,6 +40,7 @@ function success(&$guzzler, &$params, $content)
     if ($warsAdded && sizeof($wars) > 0) {
         $guzzler->call("$esiServer/v1/wars/?max_war_id=$maxWarID", "success", "fail", $params);
     }
+    $guzzler->sleep(1);
 }
 
 function fail(&$guzzler, &$params, $content)

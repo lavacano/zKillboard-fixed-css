@@ -6,6 +6,7 @@ Disallow: /related/
 Disallow: /partial/
 Disallow: /comment/
 Disallow: */reset/*
+Disallow: */top*
 sitemap: https://zkillboard.com/sitemaps/sitemaps.xml
 
 User-agent: PiplBot
@@ -18,4 +19,7 @@ User-agent: Amazonbot
 Disallow: /
 
 User-agent: AhrefsBot
+Disallow: /
+
+User-agent: dotbot
 Disallow: /

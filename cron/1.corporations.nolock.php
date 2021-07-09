@@ -5,6 +5,7 @@ use cvweiss\redistools\RedisTimeQueue;
 require_once "../init.php";
 
 if ($redis->get("zkb:reinforced") == true) exit();
+if ($redis->get("zkb:noapi") == "true") exit();
 
 $guzzler = new Guzzler($esiCorpKillmails, 5);
 
@@ -46,8 +47,7 @@ while ($minute == date('Hi')) {
             $esi->remove($corpID);
         }
     } else {
-        $guzzler->tick();
-        sleep(1);
+        $guzzler->sleep(1);
     }
 }
 $guzzler->finish();
@@ -69,6 +69,10 @@ function accessTokenDone(&$guzzler, &$params, $content)
 
     $charID = $row['characterID'];
     $corpID = $params['corpID'];
+    if (((int) $corpID) == 0) {
+        Util::out("bad data\n" . print_r($row, true));
+        return;
+    }
 
     $url = "$esiServer/v1/corporations/$corpID/killmails/recent/";
     $guzzler->call($url, "success", "fail", $params, $headers, 'GET');
@@ -118,17 +122,6 @@ function success($guzzler, $params, $content)
         if ($newKills >= 10) User::sendMessage("$newKills kills added for corp $corpName", $charID);
     }
 
-    $mKillID = (int) $mdb->findField("killmails", "killID", ['involved.corporationID' => $corpID], ['killID' => -1]);
-    if ($newKills == 0 && $mKillID < ($redis->get("zkb:topKillID") - 10000000) && @$row['iterated'] == true && isset($row['added']->sec)) {
-        if ($row['added']->sec < (time() - (180 * 86400)) && $mKillID < ($redis->get("zkb:topKillID") - 30000000)) {
-            $esi->remove($charID);
-            $mdb->remove("scopes", $row);
-            $redis->del("apiVerified:$charID");
-            Util::out("Removed corp killmail scope for $corpID / $corpName for inactivity ($mKillID)");
-            return;
-        }
-    }
-
     $headers = $guzzler->getLastHeaders();
     if ($redis->get("recentKillmailActivity:$corpID") == "true") {
         $headers = $guzzler->getLastHeaders();
@@ -163,14 +156,12 @@ function fail($guzzer, $params, $ex)
     $esi = $params['esi'];
     $charID = $row['characterID'];
     $code = $ex->getCode();
-echo "corp fail $code\n";
 
     $json = json_decode($params['content'], true);
     $code = isset($json['sso_status']) ? $json['sso_status'] : $code;
     $corpID = Info::getInfoField('characterID', (int) $charID, 'corporationID');
 
     if ($code == 403 || @$json['error'] == 'invalid_grant' || @$json['error'] == "Character does not have required role(s)" || @$json['error'] == 'invalid_token') {
-        echo "removing errored row\n";
         $mdb->remove("scopes", $row);
         $esi->remove($charID);
         return;
@@ -186,7 +177,6 @@ echo "corp fail $code\n";
         case 403:
                 $mdb->remove("scopes", $row);
                 $esi->remove($charID);
-                Util::out("403'd removed");
             break;
         case 420:
         case 500:
@@ -223,7 +213,6 @@ function accessTokenFail(&$guzzler, &$params, $ex)
     switch ($code) {
         case 403: // A 403 without an invalid_grant is invalid
             $mdb->remove("scopes", $row);
-            Util::out("403'd removed");
             break;
         case 500:
         case 502: // Server error, try again in 5 minutes

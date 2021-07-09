@@ -4,6 +4,8 @@ require_once "../init.php";
 
 use cvweiss\redistools\RedisCache;
 
+global $gankKillBotWebhook, $fullAddr;
+
 $kills = $mdb->find("killmails", ['involved.corporationID' => 1000125], ['sequence' => -1], 500);
 $added = [];
 
@@ -14,7 +16,6 @@ foreach ($kills as $kill) {
     $victim = $involved[0];
     $likelyVictims = $mdb->find("killmails", ['involved.characterID' => $victim['characterID'], 'killID' => ['$lt' => $kill['killID']]], ['killID' => -1], 5);
     foreach ($likelyVictims as $lvictim) {
-        //echo $kill['killID']  . " => " . $lvictim['killID'] . "\n";
         if (in_array($lvictim['killID'], $added) === true) continue;
         if (@$lvictim['involved'][0]['groupID'] == 29) continue;
         if ($systemID != $lvictim['system']['solarSystemID']) continue;
@@ -36,9 +37,13 @@ foreach ($kills as $kill) {
         if (sizeof($lvictim['involved']) > 5 && $lvictim['zkb']['totalValue'] >= 25000000 && $concorded == false && $valid == true) {
             $added[] = $lvictim['killID'];
             $mdb->set("killmails", ['killID' => $lvictim['killID']], ['ganked' => true]);
+            $mdb->getCollection("killmails")->update(['killID' => $lvictim['killID']], ['$addToSet' => ['labels' => 'ganked']]);
+            $mdb->getCollection("ninetyDays")->update(['killID' => $lvictim['killID']], ['$addToSet' => ['labels' => 'ganked']]);
+            $mdb->getCollection("oneWeeks")->update(['killID' => $lvictim['killID']], ['$addToSet' => ['labels' => 'ganked']]);
             Util::out("Marking " . $lvictim['killID'] . " as ganked.");
             RedisCache::delete("killDetail:" . $lvictim['killID']);
             RedisCache::delete( "zkb::detail:" . $lvictim['killID']);
+            Discord::webhook($gankKillBotWebhook, "$fullAddr/kill/" . $lvictim['killID'] . "/");
         }
     }
 }

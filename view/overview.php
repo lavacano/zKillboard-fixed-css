@@ -7,7 +7,7 @@ if (!isset($input[1])) {
     $app->redirect('/');
 }
 $id = $input[1];
-$pageType = @$input[2];
+$pageType = (string) @$input[2];
 
 if ((int) $id == 0) {
     $searchKey = $key;
@@ -27,16 +27,15 @@ if (strlen("$id") > 11) {
     $app->redirect('/');
 }
 
-$validPageTypes = array('overview', 'kills', 'losses', 'solo', 'stats', 'wars', 'supers', 'top', 'trophies', 'ranks');
+$validPageTypes = array('', 'kills', 'losses', 'solo', 'stats', 'wars', 'supers', 'trophies', 'ranks', 'top', 'topalltime');
 if ($key == 'alliance') {
     //$validPageTypes[] = 'corpstats';
 }
-$validPageTypes[] = 'top';
-$validPageTypes[] = 'topalltime';
 
 if (!in_array($pageType, $validPageTypes)) {
     $pageType = 'overview';
 }
+if ($pageType == '') $pageType = 'overview';
 
 $map = array(
         'corporation' => array('column' => 'corporation', 'mixed' => true),
@@ -85,6 +84,7 @@ try {
         $app->notFound();
     }
 } catch (Exception $ex) {
+    Log::log(print_r($ex, true));
     $app->render('error.html', array('message' => "There was an error fetching information for the $key you specified."));
 
     return;
@@ -132,7 +132,7 @@ $topKills = array();
 if ($pageType == 'top' || $pageType == 'topalltime') {
     $topParameters = $parameters; 
     $topParameters['limit'] = 100;
-    $topParameters['npc'] = false;
+    $topParameters['labels'] = 'pvp';
     $topParameters['cacheTime'] = 86400;
 
     if ($pageType == 'topalltime') {
@@ -145,8 +145,8 @@ if ($pageType == 'top' || $pageType == 'topalltime') {
 
         $topLists = $mdb->findField('statistics', 'topAllTime', ['type' => "{$useType}ID", 'id' => (int) $id]);
         Info::addInfo($topLists);
-        $topKills = null; //$mdb->findField('statistics', 'topIskKills', ['type' => "{$useType}ID", 'id' => (int) $id]);
-        $topKills = []; //Kills::getDetails($topKills);
+        $topKills = $mdb->findField('statistics', 'topIskKills', ['type' => "{$useType}ID", 'id' => (int) $id]);
+        $topKills = Kills::getDetails($topKills, true);
         $nextTopRecalc = (int) $mdb->findField('statistics', 'nextTopRecalc', ['type' => "{$useType}ID", 'id' => (int) $id]);
         $nextTopRecalc = $nextTopRecalc + 1;
     } else {
@@ -185,7 +185,7 @@ if ($pageType == 'top' || $pageType == 'topalltime') {
     $p['limit'] = 10;
     $p['pastSeconds'] = $numDays * 86400;
     $p['kills'] = $pageType != 'losses';
-    $p['npc'] = false;
+    $p['labels'] = 'pvp';
 
     $topLists[] = Info::doMakeCommon('Top Characters', 'characterID', Stats::getTop('characterID', $p));
     $topLists[] = Info::doMakeCommon('Top Corporations', 'corporationID', Stats::getTop('corporationID', $p));
@@ -247,7 +247,7 @@ if (User::isLoggedIn()) {
     $tracked = in_array((int) $id, $t);
 }
 $extra['isTracked'] = $tracked;
-$extra['canTrack'] = in_array($type, ['character', 'corporation', 'alliance']);
+$extra['canTrack'] = true; // in_array($type, ['character', 'corporation', 'alliance']);
 
 $cnt = 0;
 $cnid = 0;
@@ -322,6 +322,9 @@ if (@$statistics['shipsLost'] > 0) {
     }
 } else if (@$statistics['shipsDestroyed'] > 0) {
     $extra['dangerRatio'] = 100;
+}
+if (@$extra['dangerRatio'] !== null && date("md") == "0401") { // Everyone is snuggly on the first day of the fourth month
+    $extra['dangerRatio'] = 0;
 }
 if (@$statistics['soloKills'] > 0 && @$statistics['shipsDestroyed'] > 0) {
     $gangFactor = 100 - floor(100 * ($statistics['soloKills'] / $statistics['shipsDestroyed']));

@@ -15,6 +15,10 @@ $app->get('/challenge/', function() use ($app) {
         include "view/challenge.php";
     });
 
+$app->get('/cache/1hour/publift/:type/', function($type) use ($app) {
+        global $publift;
+        echo "<div data-fuse='" . @$publift[$type] . "'></div>";
+    });
 $app->get('/cache/1hour/google/', function() use ($app) {
         $mobile = false;
         include "view/google.php";
@@ -36,8 +40,8 @@ $app->get('/partial/(page/:page/)', function ($page = 1) use ($app) {
         });
 
 // Map
-$app->get('/map/', function () use ($app) {
-        $app->render('map.html', ['showAds' => false]);
+$app->get('/map2020/', function () use ($app) {
+        $app->render('map.html');
         });
 
 //  Information about zKillboard
@@ -191,9 +195,21 @@ $app->post('/post/', function () use ($app) {
         });
 
 // Search
-$app->map('/search(/:search)/', function ($search = null) use ($app) {
-        include 'view/search.php';
+$app->map('/search(/:search)/', function ($search = null) use ($app) {  
+        include 'view/search.php';  
         })->via('GET', 'POST');
+
+// Advanced Search
+$app->map('/asearch/', function ($search = null) use ($app) {
+        include 'view/asearch.php';
+        })->via('GET');
+$app->map('/asearchquery/', function ($search = null) use ($app) {
+        include 'view/asearchquery.php';
+        })->via('GET');
+
+$app->get('/cache/1hour/autocomplete/', function () use ($app) {
+        include 'view/search2020.php';
+        });
 
 // Autocomplete
 $app->map('/autocomplete/', function () use ($app) {
@@ -261,24 +277,18 @@ $app->get('/kills/sponsored/', function () use ($app) {
         include 'view/sponsored.php';
         });
 
-$app->get('/comment/:pageID/:commentID/up/', function ($pageID, $commentID) use ($app) {
+$app->get('/cache/bypass/comment/:pageID/:commentID/up/', function ($pageID, $commentID) use ($app) {
         include 'view/comments-up.php';
         });
 
 $app->get('/cache/1hour/killlistrow/:killID/', function ($killID) use ($app) {
         include 'view/killlistrow.php';
     });
-$app->get('/killlistrow/:killID/:entityType/:entityID/', function ($killID, $entityType, $entityID) use ($app) {
-        $app->redirect("/cache/1hour/killlistrow/$killID/", 302);
-    });
-$app->get('/killlistrow/:killID/', function ($killID) use ($app) {
-        $app->redirect("/cache/1hour/killlistrow/$killID/", 302);
-    });
 
 // The Overview stuff
-$app->get('/partial/:input+/', function ($input) use ($app) {
+/*$app->get('/partial/:input+/', function ($input) use ($app) {
         include 'view/overview.php';
-        });
+        });*/
 $app->get('/:input+/', function ($input) use ($app) {
         include 'view/overview.php';
         });
